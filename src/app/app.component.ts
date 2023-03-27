@@ -47,7 +47,7 @@ export class AppComponent implements OnInit {
         const uniqueCities = data.filter(city => {
           if (countries.has(city.country)) {
             return false;
-          } else {
+          } else {}
             countries.add(city.country);
             return true;
           }
