@@ -5,7 +5,7 @@ This project was generated with [Angular CLI](https://github.com/angular/angular
 
 ## Important!
 
-install core packages to run the app by 'npm install --save-dev @angular-devkit/build-angular'
+install core packages to run the app by ###'npm install --save-dev @angular-devkit/build-angular'###
 
 
 
