@@ -3,6 +3,8 @@
 This project was generated with [Angular CLI](https://github.com/angular/angular-cli) version 15.2.4.
 
 
+## Important!
+
 install core packages to run the app by 'npm install --save-dev @angular-devkit/build-angular'
 
 
