@@ -9,6 +9,21 @@ interface City {
   lat: number;
 }
 
+interface WeatherData {
+  name: string;
+  temperature: number;
+  feelsLike: number;
+  temperatureMin: number;
+  temperatureMax: number;
+  pressure: number;
+  humidity: number;
+  visibility: number;
+  windSpeed: number;
+  windDeg: number;
+  icon: string;
+  description: string;
+}
+
 @Component({
   selector: 'app-root',
   templateUrl: './app.component.html',
@@ -19,13 +34,12 @@ export class AppComponent implements OnInit {
   cityName = '';
   countryCode = '';
   cities: City[] = [];
-  weatherData: any;
+  weatherData: WeatherData | undefined;
   apiKey = '26aebd88d7be24240cd023de03361295';
   errorMessage = '';
 
   constructor(private http: HttpClient) {}
 
-  
   ngOnInit() {
     // retrieve city name and country code from localStorage if present
     const cityName = localStorage.getItem('cityName');
@@ -41,42 +55,47 @@ export class AppComponent implements OnInit {
     this.weatherData = undefined; // clear previous data
     this.http
       .get<City[]>(`https://api.openweathermap.org/geo/1.0/direct?q=${this.cityName}&limit=5&appid=${this.apiKey}`)
-      .subscribe(data => {
-        // Discard the repeated entries with the same country name
-        const countries = new Set<string>();
-        const uniqueCities = data.filter(city => {
-          if (countries.has(city.country)) {
-            return false;
-          } else {}
-            countries.add(city.country);
-            return true;
-          }
-        });
-        this.cities = uniqueCities.map(city => {
-          if (uniqueCities.filter(c => c.name === city.name).length > 1) {
-            return {
-              name: `${city.name}, ${city.country}`,
-              country: city.country,
-              countryCode: city.countryCode,
-              lon: city.lon,
-              lat: city.lat
-            };
-          } else {
-            return {
-              name: `${city.name}, ${city.countryCode}`,
-              country: city.country,
-              countryCode: city.countryCode,
-              lon: city.lon,
-              lat: city.lat
-            };
-          }
-        });
+      .subscribe(
+        data => {
+          // Discard the repeated entries with the same country name
+          const countries = new Set<string>();
+          const uniqueCities = data.filter(city => {
+            if (countries.has(city.country)) {
+              return false;
+            } else {
+              countries.add(city.country);
+              return true;
+            }
+          });
+          this.cities = uniqueCities.map(city => {
+            if (uniqueCities.filter(c => c.name === city.name).length > 1) {
+              return {
+                name: `${city.name}, ${city.country}`,
+                country: city.country,
+                countryCode: city.countryCode,
+                lon: city.lon,
+                lat: city.lat
+              };
+            } else {
+              return {
+                name: `${city.name}, ${city.countryCode}`,
+                country: city.country,
+                countryCode: city.countryCode,
+                lon: city.lon,
+                lat: city.lat
+              };
+            }
+          });
 
-        if (this.cities.length === 1) {
-          this.countryCode = this.cities[0].country;
-          this.getWeatherData();
+          if (this.cities.length === 1) {
+            this.countryCode = this.cities[0].country;
+            this.getWeatherData();
+          }
+        },
+        error => {
+          this.errorMessage = error.message;
         }
-      });
+      );
 
     // store city name and country code in localStorage
     localStorage.setItem('cityName', this.cityName);
@@ -89,8 +108,8 @@ export class AppComponent implements OnInit {
     // update city name and country code in localStorage
     localStorage.setItem('cityName', this.cityName);
     localStorage.setItem('countryCode', this.countryCode);
-  }
-  
+  } 
+
   private getWeatherData() {
     this.http
       .get<any>(`https://api.openweathermap.org/data/2.5/weather?q=${this.cityName},${this.countryCode}&units=metric&appid=${this.apiKey}`)
