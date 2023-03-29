@@ -1,75 +1,56 @@
-<div class="weather-app">
-  <h1>Weather App</h1>
+<!DOCTYPE html>
+<html>
+  <head>
+    <meta charset="UTF-8">
+    <title>Weather App</title>
+  </head>
+  <body>
+    <div class="container">
+      <h1 class="title">Weather App</h1>
 
-  <form class="weather-form" (ngSubmit)="onSubmit()">
-    <div class="form-group">
-      <label for="city">City</label>
-      <input type="text" id="city" name="city" [(ngModel)]="cityName" required>
-    </div>
+      <form (submit)="onSubmit()">
+        <label for="city-name">Enter city name:</label>
+        <input type="text" id="city-name" [(ngModel)]="name" [ngModelOptions]="{ standalone: true }">
+        <button type="submit">Submit</button>
+      </form>
 
-    <div class="form-group" *ngIf="cities.length > 1">
-      <label for="country">Country</label>
-      <select name="country" id="country" [(ngModel)]="countryCode" (change)="onCountrySelect()" required>
-        <option value="">Select a country</option>
-        <ng-container *ngFor="let city of cities">
-        <option *ngIf="city.countryCode === countryCode || !countryCode" [value]="city.countryCode" [ngValue]="city.name + ',' + city.countryCode">{{ city.name }}, {{ city.countryCode }}</option>
-      </ng-container>
-      </select>
-    </div>
-
-    <button class="btn btn-primary" type="submit">Get Weather</button>
-  </form>
-
-  <div class="weather-data" *ngIf="cityName && countryCode">
-    <div class="error-message" *ngIf="errorMessage">
-      <p>{{ errorMessage }}</p>
-    </div>
-
-    <div class="weather-info" *ngIf="weatherData">
-      <h2>{{ weatherData.name }}</h2>
-      <div class="weather-icon">
-        <img [src]="weatherData.icon" alt="Weather Icon">
-        <p>{{ weatherData.description }}</p>
+      <div *ngIf="countries" class="select-container">
+        <p>Multiple locations detected, please select one:</p>
+        <select (change)="onSelectCountry($event)">
+          <option value="" selected>Select country!</option>
+          <option *ngFor="let country of countries" [ngValue]="country" [selected]="selectedCountry === country">{{ country.name }}, {{ country.country }}</option>
+        </select>
       </div>
-      <div class="weather-details">
-        <div class="weather-detail">
-          <p>Temperature</p>
-          <p>{{ weatherData.temperature }} °C</p>
-        </div>
-        <div class="weather-detail">
-          <p>Feels like</p>
-          <p>{{ weatherData.feelsLike }} °C</p>
-        </div>
-        <div class="weather-detail">
-          <p>Min temperature</p>
-          <p>{{ weatherData.temperatureMin }} °C</p>
-        </div>
-        <div class="weather-detail">
-          <p>Max temperature</p>
-          <p>{{ weatherData.temperatureMax }} °C</p>
-        </div>
-        <div class="weather-detail">
-          <p>Pressure</p>
-          <p>{{ weatherData.pressure }} hPa</p>
-        </div>
-        <div class="weather-detail">
-          <p>Humidity</p>
-          <p>{{ weatherData.humidity }}%</p>
-        </div>
-        <div class="weather-detail">
-          <p>Visibility</p>
-          <p>{{ weatherData.visibility / 1000 }} km</p>
-        </div>
-        <div class="weather-detail">
-          <p>Wind Speed</p>
-          <p>{{ weatherData.windSpeed }} m/s</p>
+
+      <div *ngIf="weatherData && weatherData.error" class="error-container">
+        <p>{{ weatherData.error }}</p>
+      </div>
+
+      <div *ngIf="weatherData && !weatherData.error" class="weather-container">
+        <div class="weather-content">
+          <div class="weather-heading">
+            <h3>{{ weatherData.name }}, {{ weatherData.sys.country }}</h3>
+            <div  class="weather-icon">
+            <img [src]="weatherData.iconUrl" alt="Weather Icon">
+            </div>
+            <h5>{{ weatherData.weather[0].description }}</h5>
+          </div>
+          <div class="weather-data">
+            <p>Temperature <a>{{ weatherData.main.temp }} °C</a> </p>
+            <p>Feels Like <a>{{ weatherData.main.feels_like }} °C</a></p>
+            <p>Min Temp <a>{{ weatherData.main.temp_min }} °C</a></p>
+            <p>Max Temp <a>{{ weatherData.main.temp_max }} °C</a></p>
+          </div>
+          <div class="weather-data">
+            <p>Pressure <a>{{ weatherData.main.pressure }} hPa</a></p>
+            <p>Humidity <a>{{ weatherData.main.humidity }} %</a></p>
+            <p>Visibility <a>{{ weatherData.visibility / 1000 }} km</a></p>
+            <p>Wind Speed <a>{{ weatherData.wind.speed }} m/s</a></p>
+          </div>
         </div>
       </div>
-    </div>
-    <div class="no-data-message" *ngIf="!weatherData">
-      <p>Please select the country for the given city!</p>
-    </div>
-  </div>
-</div>
 
-<router-outlet></router-outlet>
+      <router-outlet></router-outlet>
+    </div>
+  </body>
+</html>

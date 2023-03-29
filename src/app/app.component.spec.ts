@@ -1,7 +1,9 @@
+import { ComponentFixture, TestBed, fakeAsync, tick } from '@angular/core/testing';
 import { HttpClientTestingModule, HttpTestingController } from '@angular/common/http/testing';
-import { ComponentFixture, TestBed } from '@angular/core/testing';
-import { RouterTestingModule } from '@angular/router/testing';
 import { AppComponent } from './app.component';
+import { RouterTestingModule } from '@angular/router/testing';
+import { FormsModule } from '@angular/forms';
+
 
 describe('AppComponent', () => {
   let component: AppComponent;
@@ -13,99 +15,113 @@ describe('AppComponent', () => {
       declarations: [AppComponent],
       imports: [
         HttpClientTestingModule, 
-        RouterTestingModule.withRoutes([])
+        RouterTestingModule.withRoutes([]),
+        FormsModule,
       ],
     }).compileComponents();
-
     fixture = TestBed.createComponent(AppComponent);
     component = fixture.componentInstance;
     httpMock = TestBed.inject(HttpTestingController);
+    fixture.detectChanges();
   });
+
 
   afterEach(() => {
     httpMock.verify();
   });
 
+
   it('should create the app', () => {
     expect(component).toBeTruthy();
   });
+  
 
-  it('should retrieve weather data when city is submitted', () => {
-    component.cityName = 'London';
-    component.onSubmit();
-    const req = httpMock.expectOne(`https://api.openweathermap.org/geo/1.0/direct?q=London&limit=5&appid=${component.apiKey}`);
-    expect(req.request.method).toBe('GET');
-    req.flush([
-      {
-        name: 'London',
-        country: 'United Kingdom',
-        countryCode: 'GB',
-        lon: -0.1257,
-        lat: 51.5085,
-      },
-    ]);
-    const req2 = httpMock.expectOne(`https://api.openweathermap.org/data/2.5/weather?q=London,GB&units=metric&appid=${component.apiKey}`);
-    expect(req2.request.method).toBe('GET');
-    req2.flush({
-      name: 'London',
-      main: {
-        temp: 10,
-        feels_like: 10,
-        temp_min: 10,
-        temp_max: 10,
-        pressure: 1010,
-        humidity: 80,
-      },
-      visibility: 10000,
-      wind: {
-        speed: 5,
-        deg: 180,
-      },
-      weather: [
-        {
-          icon: '01d',
-          description: 'clear sky',
-        },
-      ],
+  describe('onSubmit', () => {
+    it('should call the weather API if a valid city is entered', fakeAsync(() => {
+      const apiUrl = `https://api.openweathermap.org/geo/1.0/direct?q=Paris&limit=5&appid=26aebd88d7be24240cd023de03361295`;
+      const weatherData = { name: 'Paris', main: { temp: 12.34, feels_like: 15.67, temp_min: 10.98, temp_max: 13.45 }, weather: [{ description: 'Clear' }] };
+
+      component.name = 'Paris';
+      component.onSubmit();
+
+      const req = httpMock.expectOne(apiUrl);
+      expect(req.request.method).toEqual('GET');
+
+      req.flush([{
+        name: 'Paris',
+        country: 'FR',
+        lat: 48.8534,
+        lon: 2.3488,
+      }]);
+
+      tick();
+
+      expect(component.countries).toBeFalsy();
+      expect(component.selectedCountry).toEqual({
+        name: 'Paris',
+        country: 'FR',
+        lat: 48.8534,
+        lon: 2.3488,
+      });
+      expect(localStorage.getItem('selectedCity')).toEqual('Paris');
+
+      const weatherReq = httpMock.expectOne(`https://api.openweathermap.org/data/2.5/weather?lat=48.8534&lon=2.3488&units=metric&appid=26aebd88d7be24240cd023de03361295`);
+      expect(weatherReq.request.method).toEqual('GET');
+
+      weatherReq.flush(weatherData);
+
+      tick();
+
+      expect(component.weatherData).toEqual(weatherData);
+      httpMock.verify()
+    }));
+
+    it('should display an error if an invalid city is entered', fakeAsync(() => {
+      const apiUrl = `https://api.openweathermap.org/geo/1.0/direct?q=InvalidCity&limit=5&appid=26aebd88d7be24240cd023de03361295`;
+    
+      component.name = 'InvalidCity';
+      component.onSubmit();
+    
+      const req = httpMock.expectOne(apiUrl);
+      expect(req.request.method).toEqual('GET');
+    
+      req.flush([]);
+    
+      tick();
+    
+      expect(component.countries).toEqual([]);
+      expect(component.selectedCountry).toBeFalsy();
+      expect(localStorage.getItem('selectedCity')).toBeFalsy();
+      expect(component.weatherData.error).toEqual('City not found!');
+      httpMock.verify();
+    }));
+    
+  });
+
+  describe('onSelectCountry', () => {
+    it('should fetch weather data for the selected country', fakeAsync(() => {
+      const country = { name: 'Paris', country: 'FR', lat: 48.8534, lon: 2.3488 };
+      const weatherData = { name: 'Paris', main: { temp: 12.34, feels_like: 15.67, temp_min: 10.98, temp_max: 13.45 }, weather: [{ description: 'Clear' }] };
+  
+      component.onSelectCountry(country);
+  
+      const req = httpMock.expectOne(`https://api.openweathermap.org/data/2.5/weather?lat=${country.lat}&lon=${country.lon}&units=metric&appid=26aebd88d7be24240cd023de03361295`);
+      expect(req.request.method).toEqual('GET');
+  
+      req.flush(weatherData);
+  
+      tick();
+  
+      expect(component.weatherData).toEqual(weatherData);
+    }));
+  
+    it('should not fetch weather data if no country is selected', () => {
+      component.onSelectCountry(null);
+  
+      httpMock.expectNone(`https://api.openweathermap.org/data/2.5/weather`);
+      httpMock.verify()
     });
-    expect(component.weatherData?.name).toBe('London');
-    expect(component.weatherData?.temperature).toBe(10);
+  
   });
-
-  it('should retrieve city list when city is typed in', () => {
-    component.cityName = 'London';
-    component.onSubmit();
-    const req = httpMock.expectOne(`https://api.openweathermap.org/geo/1.0/direct?q=London&limit=5&appid=${component.apiKey}`);
-    expect(req.request.method).toBe('GET');
-    req.flush([
-      {
-        name: 'London',
-        country: 'United Kingdom',
-        countryCode: 'GB',
-        lon: -0.1257,
-        lat: 51.5085,
-      },
-      {
-        name: 'London',
-        country: 'Canada',
-        countryCode: 'CA',
-        lon: -81.233,
-        lat: 42.9834,
-      },
-    ]);
-    expect(component.cities.length).toBe(2);
-    expect(component.cities[0].name).toBe('London, United Kingdom');
-    expect(component.cities[0].country).toBe('United Kingdom');
-    expect(component.cities[1].name).toBe('London, Canada');
-    expect(component.cities[1].country).toBe('Canada');
-  });
-
-  it('should store city name and country code in local storage', () => {
-    spyOn(localStorage, 'setItem');
-    component.cityName = 'London';
-    component.countryCode = 'GB';
-    component.onCountrySelect();
-    expect(localStorage.setItem).toHaveBeenCalledWith('city', 'London');
-    expect(localStorage.setItem).toHaveBeenCalledWith('countryCode', 'GB');
-  });
+  
 });

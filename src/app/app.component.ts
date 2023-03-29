@@ -1,133 +1,91 @@
-import { Component, OnInit } from '@angular/core';
+import { Component } from '@angular/core';
 import { HttpClient } from '@angular/common/http';
-
-interface City {
-  name: string;
-  country: string;
-  countryCode: string;
-  lon: number;
-  lat: number;
-}
-
-interface WeatherData {
-  name: string;
-  temperature: number;
-  feelsLike: number;
-  temperatureMin: number;
-  temperatureMax: number;
-  pressure: number;
-  humidity: number;
-  visibility: number;
-  windSpeed: number;
-  windDeg: number;
-  icon: string;
-  description: string;
-}
 
 @Component({
   selector: 'app-root',
   templateUrl: './app.component.html',
   styleUrls: ['./app.component.css']
 })
-export class AppComponent implements OnInit {
+export class AppComponent {
   title = 'weather-app';
-  cityName = '';
-  countryCode = '';
-  cities: City[] = [];
-  weatherData: WeatherData | undefined;
-  apiKey = '26aebd88d7be24240cd023de03361295';
-  errorMessage = '';
+  name?: string;
+  countries?: any[];
+  selectedCountry: any;
+  weatherData: any;
 
-  constructor(private http: HttpClient) {}
-
-  ngOnInit() {
-    // retrieve city name and country code from localStorage if present
-    const cityName = localStorage.getItem('cityName');
-    const countryCode = localStorage.getItem('countryCode');
-    if (cityName && countryCode) {
-      this.cityName = cityName;
-      this.countryCode = countryCode;
-      this.getWeatherData();
+  constructor(private http: HttpClient) {
+    const selectedCity = localStorage.getItem('selectedCity');
+    if (selectedCity) {
+      this.name = selectedCity;
+      this.onSubmit();
     }
   }
+  
 
   onSubmit() {
+    console.log('Submitting form...');
+    this.countries = undefined; // clear countries array
     this.weatherData = undefined; // clear previous data
-    this.http
-      .get<City[]>(`https://api.openweathermap.org/geo/1.0/direct?q=${this.cityName}&limit=5&appid=${this.apiKey}`)
-      .subscribe(
-        data => {
-          // Discard the repeated entries with the same country name
-          const countries = new Set<string>();
-          const uniqueCities = data.filter(city => {
-            if (countries.has(city.country)) {
-              return false;
-            } else {
-              countries.add(city.country);
-              return true;
-            }
-          });
-          this.cities = uniqueCities.map(city => {
-            if (uniqueCities.filter(c => c.name === city.name).length > 1) {
-              return {
-                name: `${city.name}, ${city.country}`,
-                country: city.country,
-                countryCode: city.countryCode,
-                lon: city.lon,
-                lat: city.lat
-              };
-            } else {
-              return {
-                name: `${city.name}, ${city.countryCode}`,
-                country: city.country,
-                countryCode: city.countryCode,
-                lon: city.lon,
-                lat: city.lat
-              };
-            }
-          });
-
-          if (this.cities.length === 1) {
-            this.countryCode = this.cities[0].country;
-            this.getWeatherData();
-          }
-        },
-        error => {
-          this.errorMessage = error.message;
+    if (!this.name) {
+      this.weatherData = { error: 'Please enter a city name' };
+      return;
+    }
+    // API call to fetch the locations for the entered name
+    const apiUrl = `https://api.openweathermap.org/geo/1.0/direct?q=${this.name}&limit=5&appid=26aebd88d7be24240cd023de03361295`;
+    console.log('API URL:', apiUrl);
+    this.http.get(apiUrl).subscribe((data: any) => {
+      console.log('Locations:', data);
+      if (data.length === 0) {
+        // Display error message
+        this.weatherData = { error: "City not found!" };
+      } else {
+        // Filter the data to only keep the first occurrence of a location
+        const filteredData = data.filter((item: any, index: number, arr: any[]) => {
+          return arr.findIndex((t: any) => t.name === item.name && t.country === item.country) === index;
+        });
+        if (filteredData.length > 1) {
+          // Display dropdown with the multiple locations
+          this.countries = filteredData;
+        } else {
+          // Only one location found, proceed to fetch weather data
+          this.selectedCountry = filteredData[0];
+          console.log('Selected Country:', this.selectedCountry);
+          localStorage.setItem('selectedCity', this.selectedCountry.name);
+          this.fetchWeatherData();
         }
-      );
-
-    // store city name and country code in localStorage
-    localStorage.setItem('cityName', this.cityName);
-    localStorage.setItem('countryCode', this.countryCode);
+      }
+    });
+  }
+  
+  
+  
+  
+  onSelectCountry(event: any) {
+    const selectedValue = event.target.value;
+    if (event && event.target) {
+    if (this.countries) {
+      this.selectedCountry = this.countries.find(country => `${country.name}, ${country.country}` === selectedValue);
+      console.log('Selected Country:', this.selectedCountry);
+      this.fetchWeatherData();
+    }
+  }
   }
 
-  onCountrySelect() {
-    this.getWeatherData();
-
-    // update city name and country code in localStorage
-    localStorage.setItem('cityName', this.cityName);
-    localStorage.setItem('countryCode', this.countryCode);
-  } 
-
-  private getWeatherData() {
-    this.http
-      .get<any>(`https://api.openweathermap.org/data/2.5/weather?q=${this.cityName},${this.countryCode}&units=metric&appid=${this.apiKey}`)
-      .subscribe(data => {
-        this.weatherData = {
-          name: data.name,
-          temperature: data.main.temp,
-          feelsLike: data.main.feels_like,
-          temperatureMin: data.main.temp_min,
-          temperatureMax: data.main.temp_max,
-          pressure: data.main.pressure,
-          humidity: data.main.humidity,
-          visibility: data.visibility,
-          windSpeed: data.wind.speed,
-          windDeg: data.wind.deg,
-          icon: `https://openweathermap.org/img/w/${data.weather[0].icon}.png`,
-          description: data.weather[0].description
-        };
+  fetchWeatherData() {
+    console.log('Fetching weather data...');
+    if (this.selectedCountry) {
+      // API call to fetch the weather data for the selected location
+      const apiUrl = `https://api.openweathermap.org/data/2.5/weather?lat=${this.selectedCountry.lat}&lon=${this.selectedCountry.lon}&units=metric&appid=26aebd88d7be24240cd023de03361295`;
+      console.log('API URL:', apiUrl);
+      this.http.get(apiUrl).subscribe((data: any) => {
+        console.log('Weather data:', data);
+        this.weatherData = data;
+        // Construct the URL for the weather icon
+        const iconUrl = `http://openweathermap.org/img/wn/${data.weather[0].icon}.png`;
+        // Add the icon URL to the weatherData object
+        this.weatherData.iconUrl = iconUrl;
       });
-  } 
+    }
+  }
+  
 }
